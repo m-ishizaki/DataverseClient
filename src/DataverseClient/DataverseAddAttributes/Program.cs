@@ -1,20 +1,17 @@
 ﻿using DataverseClientShared;
-using System.Diagnostics;
-using System.Net.Http.Json;
-using System.Reflection.Emit;
 using System.Text;
 
-if(args.Length < 2)
+if (args.Length < 2)
 {
     Console.WriteLine("Usage: DataverseAddAttributes <EntityDefinition URL> <Path to JSON file>");
     Console.WriteLine("Example");
     Console.WriteLine("<EntityDefinition URL> : https://orgxxxxxxxx.crmx.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='xxxxx_xxxxxxxx')");
     Console.WriteLine("<Path to JSON file> : C:\example\example.json");
-
+    return;
 }
 
 string s = args[0] + "/Attributes";
-string d = args[1];;
+string d = args[1]; ;
 HttpHelper http = (await HttpHelper.Instance.Init(s, new HttpClient())).Item1;
 
 Newtonsoft.Json.Linq.JObject originJson = (Newtonsoft.Json.Linq.JObject)Newtonsoft.Json.JsonConvert.DeserializeObject(File.ReadAllText(d))!;
@@ -25,6 +22,40 @@ if (value != null)
         attribute.SelectToken("MetadataId")?.Parent?.Remove();
         attribute.SelectToken("CreatedOn")?.Parent?.Remove();
         attribute.SelectToken("ModifiedOn")?.Parent?.Remove();
+
+        var type = ((Newtonsoft.Json.Linq.JValue?)attribute["@odata.type"])?.Value?.ToString();
+        if (type == "#Microsoft.Dynamics.CRM.PicklistAttributeMetadata"
+            || type == "#Microsoft.Dynamics.CRM.MultiSelectPicklistAttributeMetadata")
+            if (attribute.SelectToken("OptionSet") == null
+                || attribute.SelectToken("OptionSet")?.SelectToken("Options") == null
+                || attribute.SelectToken("OptionSet")?.SelectToken("Options")?.Any() == false)
+            {
+                attribute["OptionSet"] = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["Options"] = new Newtonsoft.Json.Linq.JArray
+                    {
+                        new Newtonsoft.Json.Linq.JObject
+                        {
+                            ["Value"] = 1,
+                            ["Label"] = new Newtonsoft.Json.Linq.JObject
+                            {
+                                ["LocalizedLabels"] = new Newtonsoft.Json.Linq.JArray
+                                {
+                                    new Newtonsoft.Json.Linq.JObject
+                                    {
+                                        ["Label"] = "dummy001",
+                                        ["LanguageCode"] = 1041
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    ["IsGlobal"] = false,
+                    ["OptionSetType"] = "Picklist"
+                };
+
+            }
+
         var json = Newtonsoft.Json.JsonConvert.SerializeObject(attribute);
         Console.WriteLine(await PostAsync(http, json));
     }
