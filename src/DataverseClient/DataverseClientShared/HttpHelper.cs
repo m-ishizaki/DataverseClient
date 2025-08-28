@@ -1,4 +1,7 @@
-﻿namespace DataverseClientShared;
+﻿using System.Text;
+using static System.Net.WebRequestMethods;
+
+namespace DataverseClientShared;
 
 public class HttpHelper
 {
@@ -52,5 +55,22 @@ public class HttpHelper
         await AuthenticateAsync();
         SetHttpClient(httpClient);
         return (Instance!, HttpClient!);
+    }
+
+    public async Task<string> GetAsync()
+    {
+        if (HttpClient != null)
+        {
+            var response = await HttpClient.GetAsync(Path);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                throw new Exception($"Error: {response.StatusCode} {response.ReasonPhrase} {BaseAddress} {Path}");
+            }
+        }
+        return "";
     }
 }

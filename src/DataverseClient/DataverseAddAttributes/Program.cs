@@ -24,6 +24,7 @@ if (value != null)
         attribute.SelectToken("ModifiedOn")?.Parent?.Remove();
 
         var type = ((Newtonsoft.Json.Linq.JValue?)attribute["@odata.type"])?.Value?.ToString();
+
         if (type == "#Microsoft.Dynamics.CRM.PicklistAttributeMetadata"
             || type == "#Microsoft.Dynamics.CRM.MultiSelectPicklistAttributeMetadata")
             if (attribute.SelectToken("OptionSet") == null
@@ -53,7 +54,48 @@ if (value != null)
                     ["IsGlobal"] = false,
                     ["OptionSetType"] = "Picklist"
                 };
+            }
 
+        if (type == "#Microsoft.Dynamics.CRM.BooleanAttributeMetadata")
+            if (attribute.SelectToken("OptionSet") == null
+                || attribute.SelectToken("OptionSet")?.SelectToken("Options") == null
+                || attribute.SelectToken("OptionSet")?.SelectToken("Options")?.Any() == false)
+            {
+                attribute["OptionSet"] = Newtonsoft.Json.JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(
+"""
+{
+    "TrueOption": {
+      "Value": 1,
+      "Label": {
+        "@odata.type": "Microsoft.Dynamics.CRM.Label",
+        "LocalizedLabels": [
+          {
+            "@odata.type": "Microsoft.Dynamics.CRM.LocalizedLabel",
+            "Label": "はい",
+            "LanguageCode": 1041,
+            "IsManaged": false
+          }
+        ]
+      }
+    },
+    "FalseOption": {
+      "Value": 0,
+      "Label": {
+        "@odata.type": "Microsoft.Dynamics.CRM.Label",
+        "LocalizedLabels": [
+          {
+            "@odata.type": "Microsoft.Dynamics.CRM.LocalizedLabel",
+            "Label": "いいえ",
+            "LanguageCode": 1041,
+            "IsManaged": false
+          }
+        ]
+      }
+    },
+    "OptionSetType": "Boolean"
+}
+"""
+);
             }
 
         var json = Newtonsoft.Json.JsonConvert.SerializeObject(attribute);
